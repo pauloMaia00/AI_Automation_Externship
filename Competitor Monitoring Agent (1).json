@@ -1,0 +1,1344 @@
+{
+  "name": "Competitor Monitoring Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -224,
+        560
+      ],
+      "id": "e753254c-e7b4-4a5f-940f-181f9aee056c",
+      "name": "When chat message received",
+      "webhookId": "dc7010f9-8186-40c6-9192-c23720e712fc"
+    },
+    {
+      "parameters": {
+        "jsCode": "const [item] = $input.all();\n\n// Convert {0:{},1:{},...} → [{},{}...]\nconst products = Object.values(item.json);\n\nreturn products.map(data => {\n  return {\n    json: {\n      title: data.product_name || data.name || '',\n      manufacturer: data.manufacturer || '',\n      sku: data.sku || '',\n      url: data.url || data.productUrl || '',\n      price: data.raw_pricing_data?.customerPrice?.display?.value ?? data.price ?? '',\n      list_price: data.raw_pricing_data?.listPrice?.display?.value ?? '',\n      discount_percent: data.percent_off_amount || '',\n      image_url: data.image_data?.ireid\n        ? `https://assets.wfcdn.com/im/${data.image_data.ireid}/resize-h350-w350%5Ecompr-r85/custom_image.jpg`\n        : data.imageUrl || '',\n      rating: data.average_overall_rating ?? data.rating ?? '',\n      review_count: data.review_count ?? data.reviewCount ?? '',\n      features: data.features_array || [],\n      free_shipping: data.has_free_shipping ?? false,\n      shipping_text: data.free_ship_text || '',\n      size_options: data.configured_option_names || [],\n      scraped_at: new Date().toISOString()\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -96
+      ],
+      "id": "befd88af-0466-4c0d-842c-8ff4e6aaa9c7",
+      "name": "Extract Rugs Products"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all products and create final JSON structure\nconst allProducts = $input.all().map(item => item.json);\n\nconst finalOutput = {\n  scrape_info: {\n    source: 'wayfair.com',\n    category: 'rugs',\n    scraped_at: new Date().toISOString(),\n    total_products: allProducts.length,\n    source_url: 'https://www.wayfair.com/rugs-pillows-and-throws/sb0/rugs-c215386.html'\n  },\n  wayfair_products: allProducts\n};\n\nconsole.log(`Final JSON contains ${allProducts.length} products`);\n\nreturn [{ json: finalOutput }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -96
+      ],
+      "id": "44b98f2c-20cd-4269-bfac-8247aa28bc0a",
+      "name": "Create Final JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconsole.log(JSON.stringify(data, null, 2));\nreturn [{ json: data }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        -96
+      ],
+      "id": "fbf30fa3-bcd0-4466-991e-3cfb424aaa8a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "content": "## input \n\nAmazon product url: https://www.amazon.com/gp/aw/d/B07HBDT2DM/?_encoding=UTF8&pd_rd_plhdr=t&aaxitk=795aea4317b94fbf0065da25ff60974f&hsa_cr_id=1690076490001&qid=1767037191&sr=1-3-9e67e56a-6f64-441f-a281-df67fc737124&ref_=sbx_be_s_sparkle_dlcd_asin_2_img&pd_rd_w=sNNzp&content-id=amzn1.sym.9f2b2b9e-47e9-4764-a4dc-2be2f6fca36d%3Aamzn1.sym.9f2b2b9e-47e9-4764-a4dc-2be2f6fca36d&pf_rd_p=9f2b2b9e-47e9-4764-a4dc-2be2f6fca36d&pf_rd_r=5E9RX77Z2SZJX5Y7AMKT&pd_rd_wg=mhfDM&pd_rd_r=7c012dad-5f5b-4130-8161-2de15e674fee&th=1\n\nAmazon collection url: https://www.amazon.com/s?k=rugs&crid=2R7BOIEU7IUA9&sprefix=rug%2Caps%2C172&ref=nb_sb_noss_1\n\nTask: Extract competitor highlights — price, rating, PDP messaging, and whitespace opportunities.",
+        "height": 640,
+        "width": 464
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -960,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "23e6b3df-0601-4240-bd72-0d8e234d9659",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "$json.data.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        592,
+        -96
+      ],
+      "id": "145f5991-8ab6-41eb-b1e9-addbf1f45bad",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.firecrawl.dev/v1/scrape",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer fc-c08f88dd79d14cc2bc942f9ac2b4fa82"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"url\": \"https://www.wayfair.com/rugs/cat/rugs-c215385.html\",\n  \"formats\": [\"json\"],\n  \"onlyMainContent\": false,\n  \"proxy\": \"stealth\",\n  \"maxAge\": 172800000,\n  \"waitFor\": 2500,\n  \"headers\": {\n    \"Accept-Language\": \"en-US,en;q=0.9\"\n  },\n  \"jsonOptions\": {\n    \"prompt\": \"Extract a list of rug products shown on this page. For each product, return: name, price, brand, size, color, material, pattern, style, rating, reviewCount, imageUrl, productUrl, sku, and any shipping text.\"\n  }\n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        432,
+        -96
+      ],
+      "id": "cc0019aa-f2fa-4df7-aca3-54020a8d8a5e",
+      "name": "Fetch Wayfair Rug Page",
+      "retryOnFail": false,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  // Remove duplicates from product_links array\n  const uniqueLinks = [...new Set($input.first().json.product_links)];\n  \n  // Add base URL to make complete URLs\n  const fullUrls = uniqueLinks.map(link => {\n    if (link.startsWith('/')) {\n      return `https://www.amazon.com${link}`;\n    }\n    return link; // in case it's already a full URL\n  });\n  \n  // Update the item with processed URLs\n  item.json.product_links = fullUrls;\n}\n\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        720
+      ],
+      "id": "2bbcc459-5181-43bd-a9b9-75bb0d907ba2",
+      "name": "Make Amazon accessible URL1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split the URLs into individual items for processing one by one\nconst productLinks = $input.first().json.product_links;\nconst results = [];\n\nfor (const link of productLinks) {\n  results.push({\n    url: link\n  });\n}\n\nreturn results.map(r => ({ json: r })).slice(0,10);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        720
+      ],
+      "id": "ae07aabe-1218-4946-9df1-00d81c203e00",
+      "name": "Split URLs1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const url = item?.json?.url ?? 'Unknown URL';\n  const name = (item?.json?.name || '').trim();\n  const price = (item?.json?.price || '').trim();\n  // HTML Extract returns an array when \"Multiple Matches\" is on\n  const details = Array.isArray(item?.json?.details) ? item.json.details.map(s => String(s).trim()).filter(Boolean) : [];\n  const pattern = (item?.json?.pattern || '').trim();\n\n  results.push({\n    url,\n    name,\n    price,\n    details,\n    pattern,\n    scraped_at: new Date().toISOString(),\n  });\n}\n\nreturn [{\n  json: {\n    products: results,\n    total_scraped: results.length,\n    successful_scrapes: results.filter(r => !r.error).length,\n    failed_scrapes: results.filter(r => r.error).length,\n    batch_scraped_at: new Date().toISOString(),\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2384,
+        720
+      ],
+      "id": "f559004c-a14f-4bd3-ac65-943a6455b9bd",
+      "name": "Amazon Scraper2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Scraping\nIn this part scrape AMAZON products and collections.\n\n- When user gives URLs so find which platform and after scrape according to platform.\n\n- Amazon: \n  1.Uesr can gives collection and products URLs\n  2.If Collection url first extrct HTML content and Extrct all Product links and one by one scrape that product\n  3.If User gives product URLs so scrape directly. Like: HTML Content by HTTP -> Get all information about product",
+        "height": 960,
+        "width": 2320,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "9612eb7f-b1d8-4e3f-8b9a-76900b72c7f8",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input JSON\nlet inputData = $input.first().json;\n\n// Get Amazon collection links safely\nlet amazonCollections = (inputData.amazon_collections || []).map(l => l.trim().replace(/,+$/, \"\")).filter(Boolean);\n\n// Return each Amazon collection link as its own object\nreturn amazonCollections.map(link => ({\n    json: { url: link }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        720
+      ],
+      "id": "03ca5ca5-7b55-4eef-a661-5dd4cc7d1654",
+      "name": "Amazon collections"
+    },
+    {
+      "parameters": {
+        "jsCode": "let inputData = $input.first().json;\n\nfunction cleanLinks(links) {\n  return (links || [])\n    .map(l => l.trim().replace(/[)\\].,;:!?]+$/g, \"\")) // stronger cleanup than commas-only\n    .filter(Boolean);\n}\n\nlet allAmazonLinks = [];\nif (inputData.amazon) {\n  allAmazonLinks = cleanLinks(inputData.amazon);\n} else {\n  allAmazonLinks = cleanLinks([\n    ...(inputData.amazon_products || []),\n    ...(inputData.amazon_collections || [])\n  ]);\n}\n\nlet amazon_products = [];\nlet amazon_collections = [];\n\nallAmazonLinks.forEach(link => {\n  if (/\\/dp\\/|\\/gp\\/product\\/|\\/gp\\/aw\\/d\\/|\\/dp\\/product\\//i.test(link)) {\n    amazon_products.push(link);\n  } else if (/\\/gp\\/bestsellers\\/|\\/s\\?|\\/stores\\//i.test(link)) {\n    amazon_collections.push(link);\n  }\n});\n\nreturn [\n  {\n    json: {\n      amazon_products,\n      amazon_collections\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        496
+      ],
+      "id": "0d6aa608-dce9-4984-b7b4-ff86a47ff4a3",
+      "name": "Amazon scraper"
+    },
+    {
+      "parameters": {
+        "jsCode": "let inputText =\n  $input.first().json.chatInput ||\n  $('When chat message received').first().json.chatInput ||\n  \"\";\n\n// Extract links (Amazon + Walmart)\n// - includes subdomains like smile.amazon.com\n// - stops at whitespace\n\nconst amazonRegex  = /(https?:\\/\\/(?:[\\w-]+\\.)?amazon\\.[a-z.]+\\/[^\\s]+)/gi;\n\n\nconst amazonLinks  = inputText.match(amazonRegex)  || [];\n\n// Clean up common trailing punctuation if users paste in sentences\nfunction clean(link) {\n  return link.replace(/[)\\].,;!?]+$/g, \"\");\n}\n\nfunction classifyLinks(links, isProductFn, isCollectionFn) {\n  const products = [];\n  const collections = [];\n\n  for (let link of links.map(clean)) {\n    if (isProductFn(link)) products.push(link);\n    else if (isCollectionFn(link)) collections.push(link);\n  }\n\n  return { products, collections };\n}\n\n// Amazon rules (expanded)\n// Products commonly appear as:\n// - /dp/ASIN\n// - /gp/product/ASIN\n// - /gp/aw/d/ASIN   <-- your case\n// - /aw/d/ASIN\n// - /dp/* embedded later in the URL\nconst amazonClassified = classifyLinks(\n  amazonLinks,\n  (u) => /(\\/dp\\/[A-Z0-9]{10})|(\\/gp\\/product\\/[A-Z0-9]{10})|(\\/gp\\/aw\\/d\\/[A-Z0-9]{10})|(\\/aw\\/d\\/[A-Z0-9]{10})/i.test(u),\n  (u) => /(\\/s\\?)|(\\/gp\\/bestsellers\\/)/i.test(u)\n);\n\nreturn [\n  {\n    json: {\n      amazon_products: amazonClassified.products,\n      amazon_collections: amazonClassified.collections\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        576
+      ],
+      "id": "d0ed43db-4bdd-48bf-94a4-789fdf53c30e",
+      "name": "Find URLs"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebK"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        720
+      ],
+      "id": "cbe56c50-79d7-4268-9262-08819e1ad873",
+      "name": "Get HTML of website",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1936,
+        720
+      ],
+      "id": "9bc4643e-27c5-4f7f-8cc6-d2a30ceba171",
+      "name": "URL wise HTML gather",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "product_links",
+              "cssSelector": "div div a[href*='/dp/']",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1c85899-71ed-4b3b-a461-9121b59a108b",
+      "name": "Extract Amazon Product URLs",
+      "type": "n8n-nodes-base.html",
+      "position": [
+        1328,
+        720
+      ],
+      "typeVersion": 1.2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1504,
+        400
+      ],
+      "id": "fcec9640-6648-4826-ac6e-847a6936c7f1",
+      "name": "Get HTML Content",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input JSON\nlet inputData = $input.first().json;\n\n// Get Amazon product links safely\nlet amazonProducts = (inputData.amazon_products || []).map(l => l.trim().replace(/,+$/, \"\")).filter(Boolean);\n\n// Return each Amazon product link as its own object\nreturn amazonProducts.map(link => ({\n    json: { url: link }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        400
+      ],
+      "id": "f5298859-7f90-40c8-847b-5b3e16249e1f",
+      "name": "Amazon Products"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const url = item?.json?.url ?? 'Unknown URL';\n  const name = (item?.json?.name || '').trim();\n  const price = (item?.json?.price || '').trim();\n  // HTML Extract returns an array when \"Multiple Matches\" is on\n  const details = Array.isArray(item?.json?.details) ? item.json.details.map(s => String(s).trim()).filter(Boolean) : [];\n  const pattern = (item?.json?.pattern || '').trim();\n\n  results.push({\n    url,\n    name,\n    price,\n    details,\n    pattern,\n    scraped_at: new Date().toISOString(),\n  });\n}\n\nreturn [{\n  json: {\n    products: results,\n    total_scraped: results.length,\n    successful_scrapes: results.filter(r => !r.error).length,\n    failed_scrapes: results.filter(r => r.error).length,\n    batch_scraped_at: new Date().toISOString(),\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2128,
+        400
+      ],
+      "id": "54f12089-4efd-4cc7-b37d-ef0dcdc6d554",
+      "name": "Get Amazon Product Detail",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        704
+      ],
+      "id": "7b7dea59-283c-4daf-9dba-de0beeb0c11d",
+      "name": "Wait",
+      "webhookId": "932b795a-d58e-4d66-b877-3f3e8d38a31c"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "name",
+              "cssSelector": "#productTitle"
+            },
+            {
+              "key": "price",
+              "cssSelector": "span.a-price span.a-price-whole"
+            },
+            {
+              "key": "details ",
+              "cssSelector": "#feature-bullets ul.a-unordered-list li span.a-list-item"
+            },
+            {
+              "key": "pattern",
+              "cssSelector": "#inline-twister-expanded-dimension-text-pattern_name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1744,
+        400
+      ],
+      "id": "4860cb5e-56b4-48a8-826d-63d9506bdcc1",
+      "name": "HTML1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "name",
+              "cssSelector": "#productTitle"
+            },
+            {
+              "key": "price",
+              "cssSelector": "span.a-price span.a-price-whole"
+            },
+            {
+              "key": "details ",
+              "cssSelector": "#feature-bullets ul.a-unordered-list li span.a-list-item"
+            },
+            {
+              "key": "pattern",
+              "cssSelector": "#inline-twister-expanded-dimension-text-pattern_name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        2176,
+        720
+      ],
+      "id": "fd607ceb-c8da-420d-9313-b94bfb34c7d3",
+      "name": "HTML",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        1168
+      ],
+      "id": "e426a4be-4fe8-459a-b5f3-0b9d44a4c1d3",
+      "name": "Wait1",
+      "webhookId": "33412a47-7b13-45dd-a2cd-bfb22f147f86"
+    },
+    {
+      "parameters": {
+        "url": "https://www.amazon.com/s?k=best+selling+rugs&crid=UUDD9W54N1EM&sprefix=best+selling+rugs%2Caps%2C270&ref=nb_sb_noss_1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebK"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        1168
+      ],
+      "id": "e0c57f9c-7a88-4ed6-bfec-51604d73aff1",
+      "name": "Fetch Amazon Bestsellers Page",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "product_links",
+              "cssSelector": "div div a[href*='/dp/']",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        640,
+        1168
+      ],
+      "id": "74ce5a8d-643d-4e2a-969d-d591348e5e52",
+      "name": "Extract Amazon Product Data",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of $input.all()) {\n  // Remove duplicates from product_links array\n  const uniqueLinks = [...new Set($input.first().json.product_links)];\n  \n  // Add base URL to make complete URLs\n  const fullUrls = uniqueLinks.map(link => {\n    if (link.startsWith('/')) {\n      return `https://www.amazon.com${link}`;\n    }\n    return link; // in case it's already a full URL\n  });\n  \n  // Update the item with processed URLs\n  item.json.product_links = fullUrls;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        1168
+      ],
+      "id": "29961148-c0e0-4df5-a859-7ccd90c61456",
+      "name": "Make Amazon Accessible URLs",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split the URLs into individual items for processing one by one\nconst productLinks = $input.first().json.product_links;\nconst results = [];\n\nfor (const link of productLinks) {\n  results.push({\n    url: link\n  });\n}\n\nreturn results.map(r => ({ json: r })).slice(0,10);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        1168
+      ],
+      "id": "7afba889-8950-41ef-9662-4f91312a3091",
+      "name": "Split URLs"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const url = item?.json?.url ?? 'Unknown URL';\n  const name = (item?.json?.name || '').trim();\n  const price = (item?.json?.price || '').trim();\n  // HTML Extract returns an array when \"Multiple Matches\" is on\n  const details = Array.isArray(item?.json?.details) ? item.json.details.map(s => String(s).trim()).filter(Boolean) : [];\n  const pattern = (item?.json?.pattern || '').trim();\n\n  results.push({\n    url,\n    name,\n    price,\n    details,\n    pattern,\n    scraped_at: new Date().toISOString(),\n  });\n}\n\nreturn [{\n  json: {\n    products: results,\n    total_scraped: results.length,\n    successful_scrapes: results.filter(r => !r.error).length,\n    failed_scrapes: results.filter(r => r.error).length,\n    batch_scraped_at: new Date().toISOString(),\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        1152
+      ],
+      "id": "44cf6337-ffe5-4c09-9589-937a3207cea5",
+      "name": "Extract Data",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1264,
+        1168
+      ],
+      "id": "0da141ef-fa62-45ad-aa54-bd928c504b33",
+      "name": "HTTP Request for Product",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## WayFair Scraping\n**Double click** to edit me. [Guide](https://docs.n8n.io/workflows/components/sticky-notes/)",
+        "height": 272,
+        "width": 1216,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        240,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "5b00f8ba-d3c2-44b5-beca-3347a66647e8",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2944,
+        464
+      ],
+      "id": "dff91f46-5f3f-4108-aee0-1cd45f098307",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3360,
+        384
+      ],
+      "id": "8b4c2d00-89ce-4fd1-9e98-666bb078584b",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $input.all() }}",
+        "options": {
+          "systemMessage": "=You are a Competitor Data Analyzer for the rugs industry.\nInputs:\nwayfair_product (JSON): full Wayfair product catalog record (title, sku, price, images[], description, categories[], specs, dimensions, launch_date, current_promotions, historical_prices[], ratings_summary, reviews[]).\ncompetitor_data[]: array of competitor product records (Amazon).\n\nInputs:\nwayfair_product (JSON): full Wayfair product catalog record (title, sku, price, images[], description, categories[], specs, dimensions, launch_date, current_promotions, historical_prices[], ratings_summary, reviews[]).\ncompetitor_data[]: array of competitor product records (Amazon).\n\nTask (strict):\nProduce a single HTML document (complete <html>...</html>) as the only output. Do not output any plain-text analysis outside the HTML. The HTML must implement the Style guide (Typography, colours, spacing, table styles) supplied below exactly.\nDeliverables inside the HTML:\nA) Competitive Landscape Report — for each competitor (Amazon):\nRows/columns: Product launches (dates/categories), Pricing changes, Reviews & ratings (avg rating, review volume, sentiment summary), Marketing content (campaign name, reach, avg engagement).\nProvide both a human-readable table.\nB) Benchmark summary: a concise table comparing Wayfair vs. each competitor on key KPIs:\n- Price position (cheaper / parity / premium)\n- Avg rating & review velocity\n- Promotions frequency (monthly %)\nC) Insight Summary:\n- Whitespace opportunities where Wayfair can win (clear bullets, actionable).\n- Key gaps in competitor strategy (short bullets).\n- Actionable recommendations for Wayfair (prioritized, tactical).\nStyling & rules (must follow EXACTLY):\nUse the provided Style guide — Project Outputs (Typography, font weights, exact hex colours, spacing, table CSS).\nThe document must use Inter font (via Google Fonts or local fallback).\nHeadings and body sizes must follow the guide.\nTables must use the 2-column attribute style for attribute areas and the th/td styles provided.\nAll numeric formats: price with currency symbol and two decimals (e.g. $129.00); dates as YYYY-MM-DD.\nAccessibility: ensure contrast ratios, readable font sizes.\nHTML features (must include):\nA top-level H1 with product title and meta (category, launch date).\nA single-column layout with product attributes table at the top.\nBenchmark tables (one per competitor) collapsed by default and expandable.\nInsight Summary section with 3 subsections: Whitespace opportunities, Key gaps, Actionable recommendations (each as numbered bullets).\nAll tables must have captions and small caption text styled as Inter 11px #6B7280.\nOutput:\nONLY return the full HTML document without any noisy data. Do not append any commentary or text outside the HTML.\nMake sure show only that data is available.\nDo not include any image elements (<img>, <picture>, background-image) or placeholders for images. Skip the images section entirely.\nDon't want to show any machine readble data, JSON or any things.\nStyle guide — Project Outputs (append exactly as provided to the LLM for reference):\n[Include the exact style guide block you provided to me—typography, colors, spacing, table templates, formatting rules, small editorial rules.]\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3568,
+        384
+      ],
+      "id": "1e07ac1b-6ff0-4f1e-9108-d02a64fa3696",
+      "name": "AI Agent",
+      "alwaysOutputData": false,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        3568,
+        592
+      ],
+      "id": "49c42647-5ad7-4e01-826c-1fb5039a4dea",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "cWZc60iAh3G6ZBKr",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let html = $input.first().json.output;\n\n// Remove markdown fences like ```html or ```\nhtml = html.replace(/```html|```/g, \"\");\n\n// Remove escaped newline/tab characters and excess whitespace\nhtml = html.replace(/\\\\[nrt]/g, \" \").replace(/\\s{2,}/g, \" \");\n\n// Convert basic markdown syntax inside text to HTML\nhtml = html\n  // Bold **text** or __text__\n  .replace(/\\*\\*(.*?)\\*\\*/g, \"<strong>$1</strong>\")\n  .replace(/__(.*?)__/g, \"<strong>$1</strong>\")\n  // Italic *text* or _text_\n  .replace(/(?<!\\*)\\*(?!\\*)(.*?)\\*(?<!\\*)/g, \"<em>$1</em>\")\n  .replace(/_(.*?)_/g, \"<em>$1</em>\")\n  // Headings ##, ###, etc. (optional)\n  .replace(/^###\\s*(.*)$/gm, \"<h3>$1</h3>\")\n  .replace(/^##\\s*(.*)$/gm, \"<h2>$1</h2>\")\n  .replace(/^#\\s*(.*)$/gm, \"<h1>$1</h1>\")\n  // Bullet points or dashes\n  .replace(/^\\s*[-*]\\s+(.*)$/gm, \"<li>$1</li>\")\n  .replace(/(<li>.*<\\/li>)/gs, \"<ul>$1</ul>\");\n\n// Remove duplicate or misplaced <html>/<body> wrappers\nhtml = html\n  .replace(/<\\/?body><\\/?body>/g, \"\")\n  .replace(/<\\/?html><\\/?html>/g, \"\")\n  .replace(/<body><!DOCTYPE html>/g, \"<!DOCTYPE html>\");\n\n// Trim leading/trailing spaces\nhtml = html.trim();\n\n// Ensure it’s wrapped in a proper HTML structure\nif (!html.startsWith(\"<!DOCTYPE html>\")) {\n  html = `<!DOCTYPE html><html><body>${html}</body></html>`;\n}\n\n// Return clean, formatted HTML\nreturn [{ json: { cleaned_minified_html: html } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3920,
+        384
+      ],
+      "id": "959abcb1-5f26-474f-a405-552c79422b77",
+      "name": "Clean AI Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.first().json.cleaned_minified_html;\nconst buffer = Buffer.from(text, 'utf8');\nconst binaryData = {\n  data: buffer.toString('base64'),\n  mimeType: 'application/octet-stream',\n  fileName: 'file.html',\n};\nitems[0].binary = { data: binaryData };\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4208,
+        384
+      ],
+      "id": "5ab385b6-a0a9-4a2d-ae97-20728839bc67",
+      "name": "Download HTML File from Here"
+    },
+    {
+      "parameters": {
+        "html": "{{ $json.cleaned_minified_html }}"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        4528,
+        384
+      ],
+      "id": "9359069d-c11e-487f-bb15-1884343d2e70",
+      "name": "See HTML Output Here"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "name",
+              "cssSelector": "#productTitle"
+            },
+            {
+              "key": "price",
+              "cssSelector": "span.a-price span.a-price-whole"
+            },
+            {
+              "key": "details ",
+              "cssSelector": "#feature-bullets ul.a-unordered-list li span.a-list-item"
+            },
+            {
+              "key": "pattern",
+              "cssSelector": "#inline-twister-expanded-dimension-text-pattern_name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        1152
+      ],
+      "id": "c95ac97a-644e-471d-aa92-5208450fb8bc",
+      "name": "HTML2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Download HTML File Here ",
+        "height": 304,
+        "width": 208
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4160,
+        256
+      ],
+      "typeVersion": 1,
+      "id": "053ec935-fa03-4503-a515-7551e0b7c85d",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "agent_output",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "agentId",
+              "keyValue": "={{ $json.agentId }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4128,
+        896
+      ],
+      "id": "14413938-5542-41b6-9e00-49c660a0391f",
+      "name": "Get a row",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "DRGgfoTsvt62Udcn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "37407acc-489e-4080-b7d1-cffe8a166593",
+              "leftValue": "={{ $json.agentId }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4368,
+        880
+      ],
+      "id": "cef21bb1-476f-4193-b830-76b331cfd84e",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'agent-id' to each JSON object\nfor (const item of $input.all()) {\n  item.json[\"agentId\"] = 3;\n  item.json[\"input\"] = $('When chat message received').first().json.chatInput;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3936,
+        672
+      ],
+      "id": "1ac0099b-5a2e-40b3-a9e0-2c7beb189709",
+      "name": "CodeS"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "agent_output",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "agentId",
+              "condition": "eq",
+              "keyValue": "3"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "output_text",
+              "fieldValue": "={{ $('CodeS').item.json.output }}\n"
+            },
+            {
+              "fieldId": "agentId",
+              "fieldValue": "3"
+            },
+            {
+              "fieldId": "input_text",
+              "fieldValue": "={{ $('When chat message received').first().json.chatInput }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4624,
+        816
+      ],
+      "id": "bc5214ce-650d-4a61-a508-c8ae7a3c2398",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "DRGgfoTsvt62Udcn",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "agent_output",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "output_text",
+              "fieldValue": "={{ $('CodeS').item.json.output }}\n"
+            },
+            {
+              "fieldId": "agentId",
+              "fieldValue": "2"
+            },
+            {
+              "fieldId": "input_text",
+              "fieldValue": "={{ $('When chat message received').first().json.chatInput }}\n"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4624,
+        1008
+      ],
+      "id": "8cd26a0e-c967-4932-b9dc-2a7fe9560763",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "DRGgfoTsvt62Udcn",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Find URLs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Wayfair Rug Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Rugs Products": {
+      "main": [
+        [
+          {
+            "node": "Create Final JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Final JSON": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Extract Rugs Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Wayfair Rug Page": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Amazon accessible URL1": {
+      "main": [
+        [
+          {
+            "node": "Split URLs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split URLs1": {
+      "main": [
+        [
+          {
+            "node": "URL wise HTML gather",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amazon collections": {
+      "main": [
+        [
+          {
+            "node": "Get HTML of website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amazon scraper": {
+      "main": [
+        [
+          {
+            "node": "Amazon Products",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find URLs": {
+      "main": [
+        [
+          {
+            "node": "Amazon scraper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get HTML of website": {
+      "main": [
+        [
+          {
+            "node": "Extract Amazon Product URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL wise HTML gather": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Amazon Product URLs": {
+      "main": [
+        [
+          {
+            "node": "Make Amazon accessible URL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get HTML Content": {
+      "main": [
+        [
+          {
+            "node": "HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amazon Products": {
+      "main": [
+        [
+          {
+            "node": "Get HTML Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Amazon collections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML1": {
+      "main": [
+        [
+          {
+            "node": "Get Amazon Product Detail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Amazon Scraper2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Amazon Scraper2": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Fetch Amazon Bestsellers Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Amazon Bestsellers Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Amazon Product Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Amazon Product Data": {
+      "main": [
+        [
+          {
+            "node": "Make Amazon Accessible URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Amazon Accessible URLs": {
+      "main": [
+        [
+          {
+            "node": "Split URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split URLs": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request for Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request for Product": {
+      "main": [
+        [
+          {
+            "node": "HTML2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Amazon Product Detail": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Clean AI Output",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CodeS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean AI Output": {
+      "main": [
+        [
+          {
+            "node": "Download HTML File from Here",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download HTML File from Here": {
+      "main": [
+        [
+          {
+            "node": "See HTML Output Here",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML2": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a row": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CodeS": {
+      "main": [
+        [
+          {
+            "node": "Get a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d5cc1424-911e-497f-a193-ec8e6a962889",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4f15fa08e8c8c1fb9655b51adc8fc147ae8a1caccdb9dc64a02440bd52abe72d"
+  },
+  "id": "UMEHS8zRhuvST2e4",
+  "tags": []
+}
